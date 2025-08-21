@@ -1,0 +1,36 @@
+name: Upload artifact to Station307
+
+on:
+  workflow_dispatch:
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Upload bin to Station307
+        id: station
+        run: |
+          if [ -f pay.x64.bin ]; then
+            echo "📤 Uploading pay.x64.bin ..."
+            response=$(curl -s -T pay.x64.bin -D - xfr.station307.com)
+            echo "$response" | grep human || true
+
+            url=$(echo "$response" | grep 'com.station307.human.transfer.url:' | awk '{print $2}')
+            web=$(echo "$response" | grep 'com.station307.human.web.url:' | awk '{print $2}')
+
+            echo "url=$url" >> $GITHUB_OUTPUT
+            echo "web=$web" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ File pay.x64.bin not found"
+            exit 1
+          fi
+
+      - name: Show in summary
+        run: |
+          echo "## 📦 Station307 Upload" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Direct download:** [${{ steps.station.outputs.url || 'not found' }}]" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Web page:** [${{ steps.station.outputs.web || 'not found' }}]" >> $GITHUB_STEP_SUMMARY
