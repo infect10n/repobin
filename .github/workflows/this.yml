@@ -1,0 +1,54 @@
+name: Upload artifact to Station307
+
+on:
+  workflow_dispatch: # allows manual run
+  push:
+    branches:
+      - main
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Debug files
+        run: |
+          echo "📂 Current directory:"
+          pwd
+          echo
+          echo "📄 Repo contents:"
+          ls -lah
+          echo
+          echo "🔎 Looking specifically for pay.x64.bin:"
+          ls -l pay.x64.bin || echo "❌ Not found"
+
+      - name: Upload bin to Station307
+        id: station
+        run: |
+          FILE=pay.x64.bin
+          if [ -f "$FILE" ]; then
+            echo "📤 Uploading $FILE ..."
+            response=$(curl -s -T "$FILE" -D - xfr.station307.com)
+            echo "$response" | grep human || true
+
+            url=$(echo "$response" | grep 'com.station307.human.transfer.url:' | awk '{print $2}')
+            web=$(echo "$response" | grep 'com.station307.human.web.url:' | awk '{print $2}')
+
+            echo "url=$url" >> $GITHUB_OUTPUT
+            echo "web=$web" >> $GITHUB_OUTPUT
+          else
+            echo "❌ File $FILE not found"
+            exit 1
+          fi
+
+      - name: Add Station307 link to summary
+        run: |
+          {
+            echo "## 📦 Station307 Upload"
+            echo ""
+            echo "**Direct download:** [${{ steps.station.outputs.url || 'not found' }}](${{ steps.station.outputs.url || '#' }})"
+            echo ""
+            echo "**Web page (with QR code):** [${{ steps.station.outputs.web || 'not found' }}](${{ steps.station.outputs.web || '#' }})"
+          } >> $GITHUB_STEP_SUMMARY
