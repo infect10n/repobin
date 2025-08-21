@@ -1,0 +1,43 @@
+name: Upload artifact to Station307
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # lets you trigger manually too
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Upload bin to Station307
+        id: station
+        run: |
+          if [ -f pay.x64.bin ]; then
+            echo "📤 Uploading pay.x64.bin ..."
+            response=$(curl -s -T pay.x64.bin -D - xfr.station307.com)
+            echo "$response" | grep human
+
+            # extract the direct download URL
+            url=$(echo "$response" | grep 'com.station307.human.transfer.url:' | awk '{print $2}')
+            web=$(echo "$response" | grep 'com.station307.human.web.url:' | awk '{print $2}')
+
+            echo "url=$url" >> $GITHUB_OUTPUT
+            echo "web=$web" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ File pay.x64.bin not found"
+            exit 1
+          fi
+
+      - name: Add Station307 link to summary
+        run: |
+          {
+            echo "## 📦 Station307 Upload"
+            echo ""
+            echo "**Direct download:** [${{ steps.station.outputs.url }}](${{ steps.station.outputs.url }})"
+            echo ""
+            echo "**Web page (with QR code):** [${{ steps.station.outputs.web }}](${{ steps.station.outputs.web }})"
+          } >> $GITHUB_STEP_SUMMARY
